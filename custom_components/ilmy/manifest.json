@@ -1,0 +1,11 @@
+{
+  "domain": "ilmy",
+  "name": "Ilmy",
+  "codeowners": ["@walidlebourre"],
+  "config_flow": true,
+  "dependencies": ["http"],
+  "documentation": "https://ilmy.org",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "version": "0.2.0"
+}

@@ -1,0 +1,22 @@
+# Dev-only Home Assistant container for smoke-testing the Ilmy integration.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   open http://localhost:8123
+#
+# The ilmy services must be reachable from inside the container:
+#   - same docker host: use http://host.docker.internal:<port>
+#   - another machine:  use its LAN IP or the public domains
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: ilmy_ha_dev
+    ports:
+      - "8123:8123"
+    environment:
+      TZ: Europe/Paris
+    volumes:
+      - ./dev-config:/config
+      - ./custom_components:/config/custom_components
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

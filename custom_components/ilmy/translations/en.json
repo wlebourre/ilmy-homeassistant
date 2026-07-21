@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ilmy services and location",
+        "description": "Enter the base URLs of the Ilmy services (the defaults work for most users), then continue to sign in with your ilmy account in the browser.",
+        "data": {
+          "hijri_url": "Hijri service URL",
+          "hadith_url": "Hadith service URL",
+          "quran_url": "Quran service URL",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "time_zone_name": "Time zone"
+        }
+      },
+      "settings": {
+        "title": "Prayer and content settings",
+        "data": {
+          "method": "Calculation method",
+          "asr": "Asr juristic school",
+          "language": "Content language",
+          "hadith_book": "Hadith collection"
+        },
+        "data_description": {
+          "language": "Language of the hadith/verse translations",
+          "hadith_book": "Collection used for the hadith of the day"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect — check the URLs and that the services are reachable",
+      "invalid_auth": "The sign-in token was rejected — please try again",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "The Ilmy integration is already configured",
+      "missing_configuration": "The integration is not configured — please contact the developer",
+      "authorize_url_timeout": "Timeout waiting for the sign-in page",
+      "oauth_error": "An error occurred during sign-in — please try again",
+      "oauth_timeout": "The sign-in took too long — please try again",
+      "oauth_unauthorized": "Sign-in was not completed — please try again",
+      "oauth_failed": "Sign-in failed — please try again",
+      "unknown": "Unexpected error"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Prayer and content settings",
+        "data": {
+          "method": "Calculation method",
+          "asr": "Asr juristic school",
+          "language": "Content language",
+          "hadith_book": "Hadith collection"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "fajr": { "name": "Fajr" },
+      "sunrise": { "name": "Sunrise" },
+      "dhuhr": { "name": "Dhuhr" },
+      "asr": { "name": "Asr" },
+      "maghrib": { "name": "Maghrib" },
+      "isha": { "name": "Isha" },
+      "midnight": { "name": "Midnight" },
+      "next_prayer": { "name": "Next prayer" },
+      "hijri_date": { "name": "Hijri date" },
+      "qibla": { "name": "Qibla" },
+      "hadith_of_the_day": { "name": "Hadith of the day" },
+      "verse_of_the_day": { "name": "Verse of the day" }
+    }
+  }
+}

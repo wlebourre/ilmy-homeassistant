@@ -1,0 +1,57 @@
+blueprint:
+  name: Ilmy prayer time notification
+  description: >-
+    Send a notification when an Ilmy prayer time is reached.
+    Requires the Ilmy custom integration, which fires the
+    `ilmy_prayer_time` event at every prayer.
+  domain: automation
+  input:
+    prayer:
+      name: Prayer
+      description: The prayer this automation notifies for.
+      selector:
+        select:
+          options:
+            - fajr
+            - sunrise
+            - dhuhr
+            - asr
+            - maghrib
+            - isha
+            - midnight
+    notify_service:
+      name: Notify service
+      description: >-
+        The notify target, e.g. `mobile_app_my_phone`
+        (the `notify.` prefix is added automatically).
+      selector:
+        text:
+    notification_title:
+      name: Notification title
+      default: "Prayer time"
+      selector:
+        text:
+    notification_message:
+      name: Notification message
+      description: "Available template variables: `prayer`, `hijri_date`."
+      default: "It is now time for {{ prayer }} ({{ hijri_date }})."
+      selector:
+        text:
+
+trigger:
+  - trigger: event
+    event_type: ilmy_prayer_time
+    event_data:
+      prayer: !input prayer
+
+variables:
+  prayer: "{{ trigger.event.data.prayer }}"
+  hijri_date: "{{ trigger.event.data.hijri_date }}"
+
+action:
+  - action: "notify.{{ notify_service }}"
+    data:
+      title: !input notification_title
+      message: !input notification_message
+
+mode: single
