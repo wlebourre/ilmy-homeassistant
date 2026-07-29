@@ -8,10 +8,14 @@
 #   - another machine:  use its LAN IP or the public domains
 services:
   homeassistant:
-    image: ghcr.io/home-assistant/home-assistant:stable
+    # Pinned to a known stable release (2026.7.4, latest stable as of
+    # 2026-07) instead of the floating `:stable` tag — bump deliberately.
+    image: ghcr.io/home-assistant/home-assistant:2026.7.4
     container_name: ilmy_ha_dev
     ports:
-      - "8123:8123"
+      # Bind to localhost only: a dev instance with onboarding tokens must
+      # not be reachable from the LAN.
+      - "127.0.0.1:8123:8123"
     environment:
       TZ: Europe/Paris
     volumes:

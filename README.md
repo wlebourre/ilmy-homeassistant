@@ -26,6 +26,27 @@ will see it in the hadith-of-the-day attributes.
 > (`http://<your-ha>:8123/auth/external/callback`) in IAM's `oauth_clients`
 > table.
 
+## Security notes
+
+- **Token storage:** Home Assistant stores OAuth refresh/access tokens in
+  plaintext in its `.storage` files (`core.config_entries`) inside the
+  config directory. Protect that directory (filesystem permissions) and
+  **enable encryption for Home Assistant backups** (Settings → System →
+  Backups) — an unencrypted backup contains a live token for your ilmy
+  account.
+- **No PKCE / redirect coupling:** the `homeassistant` OAuth client in IAM
+  is a public client that relies on the fixed
+  `https://my.home-assistant.io/redirect/oauth` callback rather than PKCE.
+  The authorization code can therefore only be redeemed through that exact
+  redirect URI registered in IAM — do not register additional wildcard or
+  public redirect URIs for this client, and treat any request to add one
+  as a security-sensitive change.
+- **Custom service URLs:** if you point the integration at self-hosted
+  services, your ilmy token is forwarded to those hosts. The config flow
+  enforces `https://` for public hosts (plain `http://` is accepted only
+  for localhost/private LAN addresses) and asks for explicit confirmation
+  when a host differs from the official `*.ilmy.org` defaults.
+
 ## Features
 
 - Prayer times as **timestamp sensors**, usable in `time` automation triggers

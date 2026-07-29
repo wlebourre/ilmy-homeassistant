@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Ilmy services and location",
-        "description": "Enter the base URLs of the Ilmy services (the defaults work for most users), then continue to sign in with your ilmy account in the browser.",
+        "description": "Enter the base URLs of the Ilmy services (the defaults work for most users), then continue to sign in with your ilmy account in the browser.\n\nYour sign-in token is forwarded to these URLs, so https:// is required unless the host is localhost or a private (LAN) address.",
         "data": {
           "hijri_url": "Hijri service URL",
           "hadith_url": "Hadith service URL",
@@ -11,7 +11,16 @@
           "latitude": "Latitude",
           "longitude": "Longitude",
           "time_zone_name": "Time zone"
+        },
+        "data_description": {
+          "hijri_url": "https:// required (http only for localhost/private hosts)",
+          "hadith_url": "https:// required (http only for localhost/private hosts)",
+          "quran_url": "https:// required (http only for localhost/private hosts)"
         }
+      },
+      "confirm_urls": {
+        "title": "Confirm custom service hosts",
+        "description": "Some service URLs point to hosts other than the official ilmy.org services:\n\n{custom_urls}\n\nAfter you sign in, your ilmy access token will be sent to these hosts. Only continue if you control them (e.g. a self-hosted stack) — the token grants access to your ilmy account."
       },
       "settings": {
         "title": "Prayer and content settings",
@@ -30,6 +39,8 @@
     "error": {
       "cannot_connect": "Cannot connect — check the URLs and that the services are reachable",
       "invalid_auth": "The sign-in token was rejected — please try again",
+      "invalid_url": "Invalid URL — use an http(s) URL with a valid host and no embedded credentials",
+      "https_required": "https:// is required for public hosts — your sign-in token would otherwise be sent unencrypted (http is allowed only for localhost/private addresses)",
       "unknown": "Unexpected error"
     },
     "abort": {

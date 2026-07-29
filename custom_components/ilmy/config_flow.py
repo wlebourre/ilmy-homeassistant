@@ -49,8 +49,17 @@ from .const import (
     DOMAIN,
     SUPPORTED_LANGUAGES,
 )
+from .url_validation import non_default_hosts, validate_service_url
 
 _LOGGER = logging.getLogger(__name__)
+
+# The bearer token is forwarded to these URLs, so non-default hosts require
+# an explicit confirmation from the user.
+DEFAULT_SERVICE_URLS = {
+    CONF_HIJRI_URL: DEFAULT_HIJRI_URL,
+    CONF_HADITH_URL: DEFAULT_HADITH_URL,
+    CONF_QURAN_URL: DEFAULT_QURAN_URL,
+}
 
 ASR_OPTIONS = [
     SelectOptionDict(value="1", label="Shafi'i / Maliki / Hanbali"),
@@ -182,20 +191,58 @@ class IlmyConfigFlow(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=
         self, user_input: dict[str, Any] | None = None
     ) -> Any:
         """Step 1: service URLs and location, then external OAuth2 login."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            await self.async_set_unique_id(DOMAIN)
-            self._abort_if_unique_id_configured()
-            self._data = user_input
-            # Continue with the OAuth2 flow: redirect the browser to the
-            # IAM /authorize page (sign in with the ilmy account).
-            return await super().async_step_user()
+            # The IAM bearer token is forwarded to these URLs, so validate
+            # them before going any further: https is required except for
+            # localhost/RFC-1918 (self-hosted) hosts.
+            for key in (CONF_HIJRI_URL, CONF_HADITH_URL, CONF_QURAN_URL):
+                error = validate_service_url(user_input[key])
+                if error is not None:
+                    errors[key] = error
+            if not errors:
+                urls = {key: user_input[key] for key in DEFAULT_SERVICE_URLS}
+                if non_default_hosts(urls, DEFAULT_SERVICE_URLS):
+                    # Custom hosts: warn and ask for confirmation before the
+                    # token is sent anywhere outside the ilmy.org defaults.
+                    self._data = user_input
+                    return await self.async_step_confirm_urls()
+                return await self._async_continue_oauth(user_input)
 
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
                 _user_schema(self.hass), user_input
             ),
+            errors=errors,
         )
+
+    async def async_step_confirm_urls(
+        self, user_input: dict[str, Any] | None = None
+    ) -> Any:
+        """Warn before forwarding the bearer token to non-default hosts."""
+        if user_input is not None:
+            return await self._async_continue_oauth(self._data)
+
+        urls = {key: self._data[key] for key in DEFAULT_SERVICE_URLS}
+        custom = non_default_hosts(urls, DEFAULT_SERVICE_URLS)
+        return self.async_show_form(
+            step_id="confirm_urls",
+            description_placeholders={
+                "custom_urls": "\n".join(
+                    f"- {key}: {host}" for key, host in custom.items()
+                )
+            },
+        )
+
+    async def _async_continue_oauth(self, user_input: dict[str, Any]) -> Any:
+        """Store step-1 data and continue with the external OAuth2 login."""
+        await self.async_set_unique_id(DOMAIN)
+        self._abort_if_unique_id_configured()
+        self._data = user_input
+        # Continue with the OAuth2 flow: redirect the browser to the
+        # IAM /authorize page (sign in with the ilmy account).
+        return await super().async_step_user()
 
     async def async_oauth_create_entry(self, data: dict[str, Any]) -> Any:
         """Handle the token data from the OAuth2 callback.

@@ -8,12 +8,15 @@ OAuth2 session machinery, which also refreshes them automatically.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import aiohttp
 from homeassistant.helpers import config_entry_oauth2_flow
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class IlmyError(Exception):
@@ -87,10 +90,17 @@ class IlmyClient:
                 if resp.status == 404:
                     return None
                 if resp.status != 200:
+                    # Do not embed the upstream body in the exception: it
+                    # surfaces in logs/UI and may contain sensitive details.
+                    # Log a truncated copy at debug level only.
                     body = await resp.text()
-                    raise IlmyConnectionError(
-                        f"{service}: HTTP {resp.status} — {body[:200]}"
+                    _LOGGER.debug(
+                        "%s: HTTP %s — response body (truncated): %.200s",
+                        service,
+                        resp.status,
+                        body,
                     )
+                    raise IlmyConnectionError(f"{service}: HTTP {resp.status}")
                 return await resp.json()
         except (aiohttp.ClientError, TimeoutError) as err:
             raise IlmyConnectionError(f"{service}: {err}") from err
