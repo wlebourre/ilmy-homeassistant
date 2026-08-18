@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# pre-commit — secret-leak prevention (gitleaks)
+#
+# Scans staged changes and blocks the commit if anything looks like a
+# secret. Rules: .gitleaks.toml at the repo root (default ruleset +
+# audit-confirmed false-positive allowlist).
+#
+# Setup: scripts/install-hooks.sh (sets core.hooksPath and checks gitleaks).
+
+set -u
+
+# Locate gitleaks: PATH first, then the platform audit toolchain
+# (../audit/tools/bin relative to the repo root).
+GITLEAKS=""
+if command -v gitleaks >/dev/null 2>&1; then
+    GITLEAKS="$(command -v gitleaks)"
+else
+    REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    CANDIDATE="$REPO_ROOT/../audit/tools/bin/gitleaks"
+    if [ -x "$CANDIDATE" ]; then
+        GITLEAKS="$CANDIDATE"
+    fi
+fi
+
+if [ -z "$GITLEAKS" ]; then
+    echo "pre-commit: gitleaks not found in PATH or ../audit/tools/bin." >&2
+    echo "Install it with: brew install gitleaks" >&2
+    echo "Then re-run: scripts/install-hooks.sh" >&2
+    exit 1
+fi
+
+# Scan staged changes. `gitleaks git --staged` is the primary path; fall
+# back to `gitleaks dir --staged` if the git subcommand errors (older
+# builds). gitleaks exit code 1 = leaks found.
+OUTPUT="$("$GITLEAKS" git --staged --redact --verbose . 2>&1)"
+STATUS=$?
+
+if [ $STATUS -ne 0 ] && printf '%s' "$OUTPUT" | grep -qiE 'unknown command|unrecognized command'; then
+    OUTPUT="$("$GITLEAKS" dir --staged --redact --verbose . 2>&1)"
+    STATUS=$?
+fi
+
+if [ $STATUS -ne 0 ]; then
+    echo "" >&2
+    echo "✗ pre-commit: gitleaks detected potential secrets in staged changes." >&2
+    echo "  If these are real secrets: remove them and rotate them NOW." >&2
+    echo "  If this is a verified false positive: add it to the [allowlist]" >&2
+    echo "  in .gitleaks.toml (paths/commits/description — never real values)." >&2
+    echo "" >&2
+    printf '%s\n' "$OUTPUT" | grep -E 'Finding|RuleID|File:|Line:|Commit:' >&2 || printf '%s\n' "$OUTPUT" >&2
+    exit 1
+fi
+
+exit 0

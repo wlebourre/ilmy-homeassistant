@@ -1,0 +1,8 @@
+# Gitleaks configuration — Ilmy homeassistant service
+#
+# Extends the gitleaks default ruleset. No allowlist entries: a full-history
+# scan (2 commits, 2026-08-18) found no leaks, so there are no confirmed
+# false positives to cover. Real incidents are never allowlisted here.
+
+[extend]
+useDefault = true
