@@ -35,8 +35,14 @@ PLATFORMS = [Platform.SENSOR]
 IlmyConfigEntry = ConfigEntry[IlmyCoordinator]
 
 
-class IlmyOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementation):
+class IlmyOAuth2Implementation(
+    config_entry_oauth2_flow.LocalOAuth2ImplementationWithPkce
+):
     """OAuth2 implementation pointing at the Ilmy IAM service.
+
+    Sends a PKCE S256 code challenge on the authorize request and the
+    matching code_verifier on the token exchange — requires Home Assistant
+    2025.4+ (the first release shipping LocalOAuth2ImplementationWithPkce).
 
     Public client — no secret; IAM identifies the client by client_id and
     validates the redirect_uri against its registered allowlist.
@@ -48,11 +54,16 @@ class IlmyOAuth2Implementation(config_entry_oauth2_flow.LocalOAuth2Implementatio
             hass,
             DOMAIN,
             OAUTH_CLIENT_ID,
-            "",  # public client — no client secret
             OAUTH_AUTHORIZE_URL,
             OAUTH_TOKEN_URL,
-            name="Ilmy",
+            client_secret="",  # public client — no client secret
+            code_verifier_length=128,
         )
+
+    @property
+    def name(self) -> str:
+        """Display name of the implementation."""
+        return "Ilmy"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

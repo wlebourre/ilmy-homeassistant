@@ -5,7 +5,8 @@
   "config_flow": true,
   "dependencies": ["http"],
   "documentation": "https://ilmy.org",
+  "homeassistant": "2025.4.0",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "version": "0.2.0"
+  "version": "0.3.0"
 }
