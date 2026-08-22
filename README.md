@@ -13,6 +13,11 @@ The integration uses **OAuth2 SSO**: during setup you are redirected to the
 Ilmy sign-in page, you log in with your ilmy account, and Home Assistant
 stores and refreshes the tokens automatically. There is no API key to copy.
 
+**Requirements:** Home Assistant **2025.4.0 or newer** (the OAuth flow sends a
+PKCE S256 code challenge, which relies on `LocalOAuth2ImplementationWithPkce`
+first shipping in HA 2025.4). Server-side, the IAM `homeassistant` client's
+`require_pkce` must be TRUE (migration 036 lands separately).
+
 Because every user signs in individually, the content follows **your
 account's role** — e.g. authenticated tiers that include English hadith text
 will see it in the hadith-of-the-day attributes.
@@ -34,13 +39,15 @@ will see it in the hadith-of-the-day attributes.
   **enable encryption for Home Assistant backups** (Settings → System →
   Backups) — an unencrypted backup contains a live token for your ilmy
   account.
-- **No PKCE / redirect coupling:** the `homeassistant` OAuth client in IAM
-  is a public client that relies on the fixed
-  `https://my.home-assistant.io/redirect/oauth` callback rather than PKCE.
-  The authorization code can therefore only be redeemed through that exact
-  redirect URI registered in IAM — do not register additional wildcard or
-  public redirect URIs for this client, and treat any request to add one
-  as a security-sensitive change.
+- **PKCE / redirect coupling:** the `homeassistant` OAuth client in IAM
+  is a public client protected by the fixed
+  `https://my.home-assistant.io/redirect/oauth` callback combined with the
+  PKCE S256 challenge sent by the integration. The authorization code can
+  therefore only be redeemed through that exact redirect URI registered in
+  IAM — do not register additional wildcard or public redirect URIs for this
+  client, and treat any request to add one as a security-sensitive change.
+  Server-side, `require_pkce` for this client must be TRUE (migration 036
+  lands separately).
 - **Custom service URLs:** if you point the integration at self-hosted
   services, your ilmy token is forwarded to those hosts. The config flow
   enforces `https://` for public hosts (plain `http://` is accepted only
