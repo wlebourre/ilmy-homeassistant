@@ -43,17 +43,17 @@ class TestIsPrivateHost(unittest.TestCase):
 
     def test_private_ips(self):
         for host in ("127.0.0.1", "127.0.1.5", "10.0.0.4", "172.16.3.2",
-                     "172.31.255.255", "192.168.1.20", "::1",
-                     "169.254.1.1", "fe80::1"):
+                     "172.31.255.255", "192.168.1.20", "::1"):
             with self.subTest(host=host):
                 self.assertTrue(is_private_host(host))
 
     def test_public_hosts(self):
-        # 203.0.113.0/24 (TEST-NET-3) and 100.64.0.0/10 (CGNAT) are flagged
+        # 203.0.113.0/24 (TEST-NET-3), 100.64.0.0/10 (CGNAT) and the
+        # link-local ranges 169.254.0.0/16 / fe80::/10 are flagged
         # "private" by ipaddress.is_private but are NOT trusted LAN hosts.
         for host in ("8.8.8.8", "hijri.ilmy.org", "example.com", "",
                      None, "172.15.0.1", "172.32.0.1", "203.0.113.10",
-                     "100.64.0.1"):
+                     "100.64.0.1", "169.254.1.1", "fe80::1"):
             with self.subTest(host=host):
                 self.assertFalse(is_private_host(host))
 
