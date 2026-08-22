@@ -22,10 +22,10 @@ from urllib.parse import urlparse
 ERROR_INVALID_URL = "invalid_url"
 ERROR_HTTPS_REQUIRED = "https_required"
 
-# Hosts plain http is acceptable for: RFC-1918 LAN ranges, loopback and
-# link-local only.  (ipaddress.is_private would also match documentation
-# ranges like 192.0.2.0/24 or the CGNAT range 100.64.0.0/10, which must
-# NOT be treated as trusted private hosts.)
+# Hosts plain http is acceptable for: RFC-1918 LAN ranges and loopback
+# only.  (ipaddress.is_private would also match documentation ranges like
+# 192.0.2.0/24, the CGNAT range 100.64.0.0/10 and link-local ranges like
+# 169.254.0.0/16, none of which must be treated as trusted private hosts.)
 _PRIVATE_NETWORKS = tuple(
     ipaddress.ip_network(cidr)
     for cidr in (
@@ -34,14 +34,12 @@ _PRIVATE_NETWORKS = tuple(
         "192.168.0.0/16",  # RFC 1918
         "127.0.0.0/8",  # IPv4 loopback
         "::1/128",  # IPv6 loopback
-        "169.254.0.0/16",  # IPv4 link-local
-        "fe80::/10",  # IPv6 link-local
     )
 )
 
 
 def is_private_host(hostname: str | None) -> bool:
-    """Return True for localhost / loopback / RFC-1918 / link-local hosts."""
+    """Return True for localhost / loopback / RFC-1918 hosts."""
     if not hostname:
         return False
     host = hostname.strip().lower()
