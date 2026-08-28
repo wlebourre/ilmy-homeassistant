@@ -80,6 +80,22 @@ will see it in the hadith-of-the-day attributes.
 6. Step 2 — calculation method (fetched live from the hijri service), Asr
    juristic school, content language (en/fr/ar) and the hadith collection
    used for the hadith of the day.
+7. Verify: prayer timestamps, hijri date, qibla, hadith/verse of the day in
+   **Developer tools → States**; listen to `ilmy_prayer_time` in
+   **Developer tools → Events**.
+
+Make sure your instance's **internal URL** is set correctly under
+**Settings → System → Network** — the OAuth callback goes through
+`https://my.home-assistant.io/redirect/oauth` (already registered in IAM) and
+lands back on that URL via your browser. This works fine for a LAN-only
+instance. If the redirect ever fails, register the local callback in the
+production IAM DB:
+
+```sql
+UPDATE oauth_clients
+SET redirect_uris = redirect_uris || 'http://<your-ha>:8123/auth/external/callback'
+WHERE client_id = 'homeassistant';
+```
 
 These settings can be changed later via **Configure** on the integration
 card. If your tokens are revoked (e.g. password change), Home Assistant
