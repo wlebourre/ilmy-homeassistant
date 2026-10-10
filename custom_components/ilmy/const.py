@@ -31,7 +31,16 @@ DEFAULT_HADITH_BOOK: Final = "bukhari"
 LANGUAGES: Final = ["en", "fr", "ar"]
 
 # Identifying header sent with every request to the Ilmy services
-USER_AGENT: Final = "HomeAssistant-ilmy/0.2.0"
+USER_AGENT: Final = "HomeAssistant-ilmy/0.2.1"
+
+# Synthetic hadith book choices (rotate across collections instead of one)
+HADITH_BOOK_ALL: Final = "all"
+HADITH_BOOK_SAHIHAIN: Final = "sahihain"
+SAHIHAIN_SLUGS: Final = ("bukhari", "muslim")
+
+# Book kind returned by the books API for real collections (as opposed to
+# commentaries/grading books, which are never offered or picked)
+BOOK_KIND_COLLECTION: Final = "collection"
 
 # Bus event fired at every prayer time
 EVENT_PRAYER: Final = "ilmy_prayer_time"

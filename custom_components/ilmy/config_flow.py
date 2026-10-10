@@ -33,6 +33,7 @@ from homeassistant.helpers.selector import (
 
 from .api import IlmyClient, IlmyError
 from .const import (
+    BOOK_KIND_COLLECTION,
     CONF_ASR,
     CONF_HADITH_BOOK,
     CONF_HADITH_URL,
@@ -49,6 +50,8 @@ from .const import (
     DEFAULT_LANGUAGE,
     DEFAULT_QURAN_URL,
     DOMAIN,
+    HADITH_BOOK_ALL,
+    HADITH_BOOK_SAHIHAIN,
     LANGUAGES,
     USER_AGENT,
 )
@@ -85,9 +88,19 @@ TIME_ZONE_SELECTOR = SelectSelector(
     )
 )
 
+# Synthetic choices rotating across collections, always offered first.
+SYNTHETIC_BOOK_OPTIONS = [
+    SelectOptionDict(value=HADITH_BOOK_ALL, label="All collections"),
+    SelectOptionDict(
+        value=HADITH_BOOK_SAHIHAIN,
+        label="The Two Sahihs — Al-Bukhari & Muslim",
+    ),
+]
+
 # Well-known collection slugs, used when the hadith service cannot be
 # reached to build the dropdown live.
 FALLBACK_BOOK_OPTIONS = [
+    *SYNTHETIC_BOOK_OPTIONS,
     SelectOptionDict(value="bukhari", label="Sahih al-Bukhari"),
     SelectOptionDict(value="muslim", label="Sahih Muslim"),
     SelectOptionDict(value="abudawud", label="Sunan Abi Dawud"),
@@ -97,13 +110,19 @@ FALLBACK_BOOK_OPTIONS = [
     SelectOptionDict(value="malik", label="Muwatta Malik"),
     SelectOptionDict(value="ahmed", label="Musnad Ahmad"),
     SelectOptionDict(value="darimi", label="Sunan ad-Darimi"),
+    SelectOptionDict(value="mustadrak", label="Al-Mustadrak — Al-Hakim"),
+    SelectOptionDict(value="bayhaqi", label="Sunan al-Bayhaqi"),
 ]
 
 
 async def _async_book_options(
     session: aiohttp.ClientSession, hadith_url: str, current: str
 ) -> list[SelectOptionDict]:
-    """Hadith book dropdown options, fetched live with a static fallback."""
+    """Hadith book dropdown options, fetched live with a static fallback.
+
+    Only collections are offered (commentaries/grading books are skipped),
+    plus the synthetic multi-collection choices.
+    """
     url = f"{hadith_url.rstrip('/')}/api/v1/books"
     try:
         async with session.get(
@@ -116,10 +135,12 @@ async def _async_book_options(
                         value=b["slug"], label=b.get("english_title") or b["slug"]
                     )
                     for b in books
+                    # Older services have no kind field: treat as collection.
                     if b.get("total_hadiths")
+                    and b.get("kind", BOOK_KIND_COLLECTION) == BOOK_KIND_COLLECTION
                 ]
                 if options:
-                    return options
+                    return [*SYNTHETIC_BOOK_OPTIONS, *options]
     except (aiohttp.ClientError, TimeoutError) as err:
         _LOGGER.debug("Could not fetch hadith book list: %s", err)
     options = list(FALLBACK_BOOK_OPTIONS)

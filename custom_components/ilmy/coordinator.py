@@ -28,6 +28,7 @@ from homeassistant.util import dt as dt_util
 
 from .api import IlmyClient, IlmyConnectionError, IlmyError
 from .const import (
+    BOOK_KIND_COLLECTION,
     CONF_ASR,
     CONF_HADITH_BOOK,
     CONF_HIGH_LATITUDE,
@@ -43,8 +44,11 @@ from .const import (
     FETCH_JITTER_MINUTES,
     FIRST_FETCH_DELAY_MINUTES,
     HADITH_404_RETRIES,
+    HADITH_BOOK_ALL,
+    HADITH_BOOK_SAHIHAIN,
     PRAYERS,
     RETRY_DELAYS_MINUTES,
+    SAHIHAIN_SLUGS,
     STATIC_CACHE_TTL_DAYS,
     STORAGE_KEY,
     STORAGE_VERSION,
@@ -469,27 +473,57 @@ class IlmyCoordinator(DataUpdateCoordinator[IlmyData]):
 
     # ── Daily picks (deterministic rotation, unchanged algorithm) ────────────
 
+    def _rotation_books(self, books: dict[str, dict]) -> list[dict]:
+        """Books the daily hadith rotates across, in rotation order."""
+        book_slug = self._option(CONF_HADITH_BOOK, DEFAULT_HADITH_BOOK)
+        if book_slug == HADITH_BOOK_ALL:
+            selection = [
+                b
+                for b in books.values()
+                # Older caches/services have no kind field: treat as
+                # collection.
+                if b.get("kind", BOOK_KIND_COLLECTION) == BOOK_KIND_COLLECTION
+            ]
+        elif book_slug == HADITH_BOOK_SAHIHAIN:
+            selection = [books[s] for s in SAHIHAIN_SLUGS if s in books]
+        else:
+            book = books.get(book_slug) or next(iter(books.values()))
+            selection = [book]
+        return [b for b in selection if b.get("total_hadiths")]
+
     async def _async_fetch_hadith(
         self, day_of_year: int, language: str
     ) -> dict | None:
         """Deterministically pick and fetch today's hadith."""
         books = await self._async_books()
-
-        book_slug = self._option(CONF_HADITH_BOOK, DEFAULT_HADITH_BOOK)
-        book = books.get(book_slug) or next(iter(books.values()))
-        total = book.get("total_hadiths")
-        if not total:
+        selection = self._rotation_books(books)
+        if not selection:
             return None
 
-        start = (day_of_year % total) + 1
+        # Map the day onto one global index across the selection's combined
+        # hadith ranges (a single book is just a range of one).
+        combined = sum(b["total_hadiths"] for b in selection)
+        start = day_of_year % combined
+        idx = 0
+        while start >= selection[idx]["total_hadiths"]:
+            start -= selection[idx]["total_hadiths"]
+            idx += 1
+
         detail = None
-        for offset in range(HADITH_404_RETRIES):
-            id_in_book = ((start - 1 + offset) % total) + 1
+        for _ in range(HADITH_404_RETRIES):
+            book = selection[idx]
             detail = await self.client.async_get_hadith_by_ref(
-                book["slug"], id_in_book
+                book["slug"], start + 1
             )
             if detail:
                 break
+            # Numbers that exist only as supplementary chains are not
+            # resolvable: walk forward, continuing into the next book when
+            # this one is exhausted.
+            start += 1
+            if start >= book["total_hadiths"]:
+                idx = (idx + 1) % len(selection)
+                start = 0
         if not detail:
             return None
 

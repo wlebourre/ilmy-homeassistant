@@ -570,3 +570,167 @@ async def test_user_agent_sent_on_requests(
     for calls in m.requests.values():
         for call in calls:
             assert call.kwargs["headers"]["User-Agent"] == USER_AGENT
+
+
+# ── Multi-book hadith rotation (all / sahihain) ────────────────────────────────
+
+DOY = DAY.timetuple().tm_yday  # 166
+
+SMALL_BOOKS = [
+    {"slug": "bukhari", "english_title": "Sahih al-Bukhari",
+     "total_hadiths": 5, "kind": "collection"},
+    {"slug": "muslim", "english_title": "Sahih Muslim",
+     "total_hadiths": 3, "kind": "collection"},
+    # A commentary: never offered, never part of the "all" rotation.
+    {"slug": "nawawi40", "english_title": "Sharh al-Arba'in",
+     "total_hadiths": 4, "kind": "commentary"},
+    {"slug": "abudawud", "english_title": "Sunan Abi Dawud",
+     "total_hadiths": 4, "kind": "collection"},
+]
+
+
+def make_entry_with_book(book: str) -> MockConfigEntry:
+    entry = make_entry()
+    return MockConfigEntry(
+        domain=DOMAIN,
+        unique_id="ilmy",
+        data=dict(entry.data),
+        options={
+            CONF_LANGUAGE: "en",
+            CONF_HADITH_BOOK: book,
+            CONF_ASR: 1,
+            CONF_HIGH_LATITUDE: 0,
+        },
+    )
+
+
+def seed_small_books(hass_storage) -> None:
+    """Cache the small books/surahs lists so the batch is hijri+by-ref+window."""
+    hass_storage[STORAGE_KEY] = {
+        "version": STORAGE_VERSION,
+        "minor_version": 1,
+        "key": STORAGE_KEY,
+        "data": {
+            "books": {"fetched_at": DAY.isoformat(), "data": SMALL_BOOKS},
+            "surahs": {"fetched_at": DAY.isoformat(), "data": SURAHS_PAYLOAD},
+        },
+    }
+
+
+def by_ref_calls(m: aioresponses, slug: str, num: int) -> int:
+    return sum(
+        len(calls)
+        for (method, url), calls in m.requests.items()
+        if str(url).endswith(f"/by-ref/{slug}/{num}")
+    )
+
+
+async def run_daily_batch(hass, freezer, fixed_jitter, m: aioresponses, entry):
+    """Set up at 08:00 and advance past the Maghrib+jitter daily batch."""
+    freezer.move_to(SETUP_TIME)
+    maghrib = expected_times(DAY)["maghrib"]
+    await setup_integration(hass, entry)
+    await advance(
+        hass, freezer, maghrib + timedelta(minutes=JITTER_MINUTES, seconds=5)
+    )
+
+
+async def test_hadith_pick_all_collections_rotates_across_books(
+    hass: HomeAssistant, hass_storage, freezer, fixed_jitter
+) -> None:
+    """'all' rotates over the combined ranges of the collections only (the
+    commentary is excluded), in API order: 166 % 12 = 10 -> abudawud #3."""
+    seed_small_books(hass_storage)
+    with aioresponses() as m:
+        mock_all(m)
+        await run_daily_batch(hass, freezer, fixed_jitter, m,
+                              make_entry_with_book("all"))
+
+        assert by_ref_calls(m, "abudawud", 3) == 1
+        assert count_calls(m, BY_REF_RE) == 1
+
+
+async def test_hadith_pick_sahihain_rotates_over_bukhari_muslim(
+    hass: HomeAssistant, hass_storage, freezer, fixed_jitter
+) -> None:
+    """'sahihain' rotates over [bukhari, muslim]: 166 % 8 = 6 -> muslim #2."""
+    seed_small_books(hass_storage)
+    with aioresponses() as m:
+        mock_all(m)
+        await run_daily_batch(hass, freezer, fixed_jitter, m,
+                              make_entry_with_book("sahihain"))
+
+        assert by_ref_calls(m, "muslim", 2) == 1
+        assert count_calls(m, BY_REF_RE) == 1
+
+
+async def test_hadith_pick_single_book_unchanged(
+    hass: HomeAssistant, hass_storage, freezer, fixed_jitter
+) -> None:
+    """A single configured book behaves as before: 166 % 5 = 1 -> bukhari #2."""
+    seed_small_books(hass_storage)
+    with aioresponses() as m:
+        mock_all(m)
+        await run_daily_batch(hass, freezer, fixed_jitter, m,
+                              make_entry_with_book("bukhari"))
+
+        assert by_ref_calls(m, "bukhari", 2) == 1
+        assert count_calls(m, BY_REF_RE) == 1
+
+
+async def test_hadith_walk_continues_into_next_book(
+    hass: HomeAssistant, hass_storage, freezer, fixed_jitter
+) -> None:
+    """On 404 the walk advances the id and, once the book is exhausted,
+    continues into the next book of the rotation (abudawud -> bukhari #1)."""
+    seed_small_books(hass_storage)
+    with aioresponses() as m:
+        m.get(HIJRI_RE, status=200, payload=HIJRI_PAYLOAD, repeat=True)
+        # 'all' maps the day to abudawud #3; both remaining abudawud ids 404,
+        # then the walk wraps into bukhari #1.
+        m.get(re.compile(r".*/by-ref/abudawud/3$"), status=404)
+        m.get(re.compile(r".*/by-ref/abudawud/4$"), status=404)
+        m.get(re.compile(r".*/by-ref/bukhari/1$"), status=200,
+              payload=HADITH_PAYLOAD)
+        m.get(WINDOW_RE, status=200, payload=WINDOW_PAYLOAD, repeat=True)
+        await run_daily_batch(hass, freezer, fixed_jitter, m,
+                              make_entry_with_book("all"))
+
+        assert by_ref_calls(m, "abudawud", 3) == 1
+        assert by_ref_calls(m, "abudawud", 4) == 1
+        assert by_ref_calls(m, "bukhari", 1) == 1
+
+    assert (
+        hass.states.get("sensor.ilmy_hadith_of_the_day").state
+        == "Sahih al-Bukhari 756"
+    )
+
+
+async def test_books_cache_stores_kind(
+    hass: HomeAssistant, freezer, fixed_jitter, hass_storage
+) -> None:
+    """The persistent books cache keeps the kind field, so a restart still
+    distinguishes collections from commentaries."""
+    books_with_kind = [
+        {"slug": "bukhari", "english_title": "Sahih al-Bukhari",
+         "total_hadiths": 7563, "kind": "collection"},
+        {"slug": "nawawi40", "english_title": "Sharh al-Arba'in",
+         "total_hadiths": 42, "kind": "commentary"},
+    ]
+    freezer.move_to(SETUP_TIME)
+    maghrib = expected_times(DAY)["maghrib"]
+
+    with aioresponses() as m:
+        m.get(HIJRI_RE, status=200, payload=HIJRI_PAYLOAD, repeat=True)
+        m.get(BOOKS_RE, status=200, payload=books_with_kind, repeat=True)
+        m.get(BY_REF_RE, status=200, payload=HADITH_PAYLOAD, repeat=True)
+        m.get(SURAHS_RE, status=200, payload=SURAHS_PAYLOAD, repeat=True)
+        m.get(WINDOW_RE, status=200, payload=WINDOW_PAYLOAD, repeat=True)
+        await setup_integration(hass, make_entry())
+        await advance(
+            hass, freezer, maghrib + timedelta(minutes=JITTER_MINUTES, seconds=5)
+        )
+
+    assert (
+        hass_storage[STORAGE_KEY]["data"]["books"]["data"] == books_with_kind
+    )
