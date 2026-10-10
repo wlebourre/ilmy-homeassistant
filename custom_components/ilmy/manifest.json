@@ -11,6 +11,7 @@
   "documentation": "https://ilmy.org",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/wlebourre/ilmy-homeassistant/issues",
   "loggers": [
     "custom_components.ilmy"
   ],
