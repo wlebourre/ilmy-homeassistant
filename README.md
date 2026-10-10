@@ -40,7 +40,7 @@ hadith, verse), from the Ilmy platform services:
 - The hadith book list and surah list are cached locally for 30 days, so
   they are not part of the daily traffic.
 - Every request carries an identifying `User-Agent`
-  (`HomeAssistant-ilmy/0.2.1`) — no credentials of any kind are sent.
+  (`HomeAssistant-ilmy/0.2.2`) — no credentials of any kind are sent.
 - **Your location never leaves your home**: prayer times and qibla are
   computed locally from the coordinates you configure.
 - `https://` is enforced for public service hosts (plain `http://` is
@@ -248,4 +248,7 @@ homeassistant/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The Ilmy name, logo, and icon
+(`custom_components/ilmy/brand/`) are **not** covered by the MIT license;
+they remain © Ilmy, all rights reserved (see the exclusion clause in
+LICENSE).

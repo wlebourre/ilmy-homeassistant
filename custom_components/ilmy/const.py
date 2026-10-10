@@ -31,7 +31,7 @@ DEFAULT_HADITH_BOOK: Final = "bukhari"
 LANGUAGES: Final = ["en", "fr", "ar"]
 
 # Identifying header sent with every request to the Ilmy services
-USER_AGENT: Final = "HomeAssistant-ilmy/0.2.1"
+USER_AGENT: Final = "HomeAssistant-ilmy/0.2.2"
 
 # Synthetic hadith book choices (rotate across collections instead of one)
 HADITH_BOOK_ALL: Final = "all"
