@@ -40,7 +40,7 @@ hadith, verse), from the Ilmy platform services:
 - The hadith book list and surah list are cached locally for 30 days, so
   they are not part of the daily traffic.
 - Every request carries an identifying `User-Agent`
-  (`HomeAssistant-ilmy/0.2.0`) — no credentials of any kind are sent.
+  (`HomeAssistant-ilmy/0.2.1`) — no credentials of any kind are sent.
 - **Your location never leaves your home**: prayer times and qibla are
   computed locally from the coordinates you configure.
 - `https://` is enforced for public service hosts (plain `http://` is
@@ -64,6 +64,11 @@ hadith, verse), from the Ilmy platform services:
    `config/custom_components/` directory.
 2. Restart Home Assistant.
 
+> **Always restart after installing or updating.** Custom integration code
+> is only loaded at startup: after installing the integration — and after
+> every HACS update — you **must restart Home Assistant** before new
+> entities, triggers or fixes become available.
+
 ## Configuration
 
 Everything is done in the UI — **Settings → Devices & services → Add
@@ -75,7 +80,10 @@ integration → Ilmy**:
 - **Location** — latitude/longitude/time zone, prefilled from your Home
   Assistant home location.
 - **Content language** (en/fr/ar) and **hadith collection** (fetched live
-  from the hadith service, with a built-in fallback list).
+  from the hadith service, with a built-in fallback list). Besides the
+  individual collections you can pick **All collections** or **The Two
+  Sahihs — Al-Bukhari & Muslim** to rotate the hadith of the day across
+  several collections.
 - The calculation method defaults from your HA-configured **country**.
 
 The **Configure** button on the integration card re-opens the options at any
@@ -187,7 +195,9 @@ notification**. Pick the prayer, the notify target (e.g.
 ## Daily content
 
 The hadith and verse of the day rotate deterministically with the calendar
-day (no repeats within a collection's cycle) and refresh once per day,
+day (no repeats within a cycle — across the combined range of all selected
+collections when **All collections** or **The Two Sahihs** is chosen) and
+refresh once per day,
 shortly after local Maghrib. The Hijri date sensor is marked with a
 `stale: true` attribute if its last fetch failed and the previous value is
 being kept. Content survives restarts — the last known values are restored

@@ -197,6 +197,29 @@ async def test_async_get_triggers(hass: HomeAssistant) -> None:
     assert triggers == {"prayer_time": IlmyPrayerTimeTrigger}
 
 
+async def test_trigger_platform_registers_end_to_end(
+    hass: HomeAssistant, freezer
+) -> None:
+    """End-to-end: HA's trigger helper (run by bootstrap at startup)
+    discovers the ilmy trigger platform, registers ilmy.prayer_time and
+    loads its triggers.yaml description for the automation UI."""
+    from homeassistant.helpers import trigger as trigger_helper
+
+    freezer.move_to(SETUP_TIME)
+    with aioresponses() as m:
+        mock_all(m)
+        await setup_integration(hass)
+        # This is what bootstrap.py runs eagerly at startup.
+        await trigger_helper.async_setup(hass)
+
+        assert hass.data[trigger_helper.TRIGGERS]["ilmy.prayer_time"] == "ilmy"
+
+        descriptions = await trigger_helper.async_get_all_descriptions(hass)
+
+    desc = descriptions["ilmy.prayer_time"]
+    assert set(desc["fields"]) == {"prayer", "offset"}
+
+
 async def test_validate_config_accepts_valid(hass: HomeAssistant) -> None:
     """Valid configs pass, with the offset parsed and defaulted."""
     config = await IlmyPrayerTimeTrigger.async_validate_config(

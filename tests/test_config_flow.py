@@ -50,6 +50,26 @@ BOOKS_PAYLOAD = [
     {"slug": "bukhari", "english_title": "Sahih al-Bukhari", "total_hadiths": 7563},
     {"slug": "muslim", "english_title": "Sahih Muslim", "total_hadiths": 3033},
 ]
+BOOKS_PAYLOAD_WITH_KIND = [
+    {
+        "slug": "bukhari",
+        "english_title": "Sahih al-Bukhari",
+        "total_hadiths": 7563,
+        "kind": "collection",
+    },
+    {
+        "slug": "nawawi40",
+        "english_title": "Sharh al-Arba'in",
+        "total_hadiths": 42,
+        "kind": "commentary",
+    },
+    {
+        "slug": "muslim",
+        "english_title": "Sahih Muslim",
+        "total_hadiths": 3033,
+        "kind": "collection",
+    },
+]
 SURAHS_PAYLOAD = [
     {"id": 1, "number": 1, "english_name": "Al-Fatihah", "arabic_name": "الفاتحة"},
 ]
@@ -76,6 +96,13 @@ def _mock_services(m: aioresponses) -> None:
 def _mock_book_options(m: aioresponses) -> None:
     """Mock the book-list fetch used to build the form dropdowns."""
     m.get(BOOKS_RE, status=200, payload=BOOKS_PAYLOAD, repeat=True)
+
+
+def _book_option_values(result) -> list[str]:
+    """Values of the hadith_book dropdown in a shown form."""
+    schema = result["data_schema"]
+    key = next(k for k in schema.schema if k.schema == CONF_HADITH_BOOK)
+    return [o["value"] for o in schema.schema[key].config["options"]]
 
 
 @pytest.fixture(autouse=True)
@@ -303,3 +330,55 @@ async def test_options_flow_persists_and_reloads(hass: HomeAssistant) -> None:
 
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+# ── Hadith book options ─────────────────────────────────────────────────────────
+
+
+async def test_book_options_filter_commentaries_and_add_synthetic(
+    hass: HomeAssistant,
+) -> None:
+    """Only kind=collection books are offered, preceded by the synthetic
+    all/sahihain choices; commentaries are excluded."""
+    with aioresponses() as m:
+        m.get(
+            "https://hadith.ilmy.org/api/v1/books",
+            status=200,
+            payload=BOOKS_PAYLOAD_WITH_KIND,
+            repeat=True,
+        )
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+
+    assert _book_option_values(result) == ["all", "sahihain", "bukhari", "muslim"]
+
+
+async def test_book_options_fallback_lists_all_collections(
+    hass: HomeAssistant,
+) -> None:
+    """When the service is unreachable, the static fallback offers every
+    known collection plus the synthetic choices."""
+    with aioresponses() as m:
+        m.get("https://hadith.ilmy.org/api/v1/books", status=500, repeat=True)
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+
+    values = _book_option_values(result)
+    assert values[:2] == ["all", "sahihain"]
+    assert set(values) == {
+        "all",
+        "sahihain",
+        "abudawud",
+        "ahmed",
+        "bukhari",
+        "darimi",
+        "ibnmajah",
+        "malik",
+        "muslim",
+        "nasai",
+        "tirmidhi",
+        "mustadrak",
+        "bayhaqi",
+    }

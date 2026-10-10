@@ -19,7 +19,7 @@
           "hadith_url": "https:// required (http only for localhost/private hosts)",
           "quran_url": "https:// required (http only for localhost/private hosts)",
           "language": "Language of the hadith/verse translations",
-          "hadith_book": "Collection used for the hadith of the day"
+          "hadith_book": "Collection used for the hadith of the day — or rotate across \"All collections\" / \"The Two Sahihs\""
         }
       }
     },
@@ -51,7 +51,7 @@
         "data_description": {
           "high_latitude": "How Fajr/Isha are estimated when the sun never reaches their angle (polar day/night)",
           "language": "Language of the hadith/verse translations",
-          "hadith_book": "Collection used for the hadith of the day"
+          "hadith_book": "Collection used for the hadith of the day — or rotate across \"All collections\" / \"The Two Sahihs\""
         }
       }
     }
