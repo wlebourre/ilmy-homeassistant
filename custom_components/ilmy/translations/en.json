@@ -56,6 +56,36 @@
       }
     }
   },
+  "selector": {
+    "prayer": {
+      "options": {
+        "any": "Any prayer",
+        "fajr": "Fajr",
+        "sunrise": "Sunrise",
+        "dhuhr": "Dhuhr",
+        "asr": "Asr",
+        "maghrib": "Maghrib",
+        "isha": "Isha",
+        "midnight": "Midnight"
+      }
+    }
+  },
+  "triggers": {
+    "prayer_time": {
+      "name": "Prayer time",
+      "description": "Triggers at a computed prayer time (fajr, sunrise, dhuhr, asr, maghrib, isha or midnight), with an optional offset — use a negative duration to trigger before the prayer (e.g. 10 minutes before Maghrib).",
+      "fields": {
+        "prayer": {
+          "name": "Prayer",
+          "description": "The prayer time to trigger on, or \"Any prayer\" for each prayer time."
+        },
+        "offset": {
+          "name": "Offset",
+          "description": "How long after (or, when negative, before) the prayer time to trigger."
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "fajr": { "name": "Fajr" },

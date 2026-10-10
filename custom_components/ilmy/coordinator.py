@@ -116,6 +116,11 @@ class IlmyCoordinator(DataUpdateCoordinator[IlmyData]):
     def _tz(self) -> ZoneInfo:
         return ZoneInfo(self._location()[2])
 
+    @property
+    def tomorrow_times(self) -> dict[str, datetime | None]:
+        """Prayer times computed for tomorrow (None for polar day/night)."""
+        return self._tomorrow_times
+
     def _option(self, key: str, default):
         return self.config_entry.options.get(
             key, self.config_entry.data.get(key, default)

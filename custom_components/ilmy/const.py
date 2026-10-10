@@ -31,7 +31,7 @@ DEFAULT_HADITH_BOOK: Final = "bukhari"
 LANGUAGES: Final = ["en", "fr", "ar"]
 
 # Identifying header sent with every request to the Ilmy services
-USER_AGENT: Final = "HomeAssistant-ilmy/0.1.0"
+USER_AGENT: Final = "HomeAssistant-ilmy/0.2.0"
 
 # Bus event fired at every prayer time
 EVENT_PRAYER: Final = "ilmy_prayer_time"
