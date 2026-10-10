@@ -40,7 +40,7 @@ hadith, verse), from the Ilmy platform services:
 - The hadith book list and surah list are cached locally for 30 days, so
   they are not part of the daily traffic.
 - Every request carries an identifying `User-Agent`
-  (`HomeAssistant-ilmy/0.2.1`) — no credentials of any kind are sent.
+  (`HomeAssistant-ilmy/0.2.2`) — no credentials of any kind are sent.
 - **Your location never leaves your home**: prayer times and qibla are
   computed locally from the coordinates you configure.
 - `https://` is enforced for public service hosts (plain `http://` is
@@ -125,49 +125,30 @@ adjustment in the options if that affects you.
 
 ## Automations
 
-### Trigger on a prayer event
+### Prayer time trigger (recommended — no YAML)
 
-The integration fires `ilmy_prayer_time` with `prayer`, `time` and
-`hijri_date` in the event data:
+1. Go to **Settings → Automations & scenes** and create (or edit) an
+   automation.
+2. Click **Add trigger**.
+3. In the dialog, open the **"By type"** tab.
+   ⚠️ The trigger is **not** listed under **"By target"** — that tab only
+   groups triggers that act on a specific device or entity, and prayer
+   times are global to your home, so "No triggers available for Ilmy"
+   there is expected.
+4. Type **"Prayer time"** in the search box (or scroll to the **Ilmy**
+   section) and pick **Prayer time**.
+5. Choose the **prayer** (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha,
+   Midnight — or **Any prayer** to fire at every one) and optionally an
+   **offset** — use a negative duration like `-00:10:00` to fire *before*
+   the prayer.
+6. Add your action(s). In message/text fields you can use the trigger
+   variables `{{ trigger.prayer }}`, `{{ trigger.time }}` and
+   `{{ trigger.hijri_date }}`.
 
-```yaml
-triggers:
-  - trigger: event
-    event_type: ilmy_prayer_time
-    event_data:
-      prayer: maghrib
-actions:
-  - action: notify.notify
-    data:
-      message: "Maghrib time — {{ trigger.event.data.hijri_date }}"
-```
+Prefer zero setup? The **notification blueprint** (below) builds a prayer
+notification automation for you in a few clicks.
 
-### Trigger at a prayer time (like `sun` / `time`)
-
-```yaml
-triggers:
-  - trigger: time
-    at: sensor.ilmy_fajr
-```
-
-### Trigger with an offset (e.g. 10 minutes before Maghrib)
-
-```yaml
-triggers:
-  - trigger: time
-    at:
-      entity_id: sensor.ilmy_maghrib
-      offset: "-00:10:00"
-```
-
-### Native trigger: Ilmy → Prayer time
-
-In the automation editor, pick **Add trigger → Ilmy → Prayer time** for a
-first-class trigger: choose the prayer (fajr, sunrise, dhuhr, asr, maghrib,
-isha, midnight — or **Any prayer** to fire at every one) and an optional
-**offset** (use a negative duration to fire *before* the prayer).
-
-In YAML:
+In YAML, the same trigger is:
 
 ```yaml
 triggers:
@@ -181,8 +162,28 @@ actions:
       message: "Maghrib in 10 minutes — {{ trigger.hijri_date }}"
 ```
 
-The trigger variables mirror the `ilmy_prayer_time` event data:
-`trigger.prayer`, `trigger.time` and `trigger.hijri_date`.
+### Other ways to trigger (YAML)
+
+Fire on the raw `ilmy_prayer_time` event:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: ilmy_prayer_time
+    event_data:
+      prayer: maghrib
+```
+
+Or use the prayer timestamp sensors in a standard time trigger (with an
+optional offset nested inside `at:`):
+
+```yaml
+triggers:
+  - trigger: time
+    at:
+      entity_id: sensor.ilmy_maghrib
+      offset: "-00:10:00"
+```
 
 ### Notification blueprint
 
@@ -248,4 +249,7 @@ homeassistant/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). The Ilmy name, logo, and icon
+(`custom_components/ilmy/brand/`) are **not** covered by the MIT license;
+they remain © Ilmy, all rights reserved (see the exclusion clause in
+LICENSE).
