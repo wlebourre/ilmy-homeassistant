@@ -251,5 +251,4 @@ homeassistant/
 
 MIT — see [LICENSE](LICENSE). The Ilmy name, logo, and icon
 (`custom_components/ilmy/brand/`) are **not** covered by the MIT license;
-they remain © Ilmy, all rights reserved (see the exclusion clause in
-LICENSE).
+they remain © Ilmy, all rights reserved (see [NOTICE](NOTICE)).
