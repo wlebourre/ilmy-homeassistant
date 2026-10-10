@@ -1,0 +1,22 @@
+prayer_time:
+  fields:
+    prayer:
+      required: true
+      default: any
+      selector:
+        select:
+          translation_key: prayer
+          options:
+            - "any"
+            - fajr
+            - sunrise
+            - dhuhr
+            - asr
+            - maghrib
+            - isha
+            - midnight
+    offset:
+      required: false
+      selector:
+        duration:
+          enable_day: false

@@ -40,7 +40,7 @@ hadith, verse), from the Ilmy platform services:
 - The hadith book list and surah list are cached locally for 30 days, so
   they are not part of the daily traffic.
 - Every request carries an identifying `User-Agent`
-  (`HomeAssistant-ilmy/0.1.0`) — no credentials of any kind are sent.
+  (`HomeAssistant-ilmy/0.2.0`) — no credentials of any kind are sent.
 - **Your location never leaves your home**: prayer times and qibla are
   computed locally from the coordinates you configure.
 - `https://` is enforced for public service hosts (plain `http://` is
@@ -147,9 +147,34 @@ triggers:
 ```yaml
 triggers:
   - trigger: time
-    at: sensor.ilmy_maghrib
-    offset: "-00:10:00"
+    at:
+      entity_id: sensor.ilmy_maghrib
+      offset: "-00:10:00"
 ```
+
+### Native trigger: Ilmy → Prayer time
+
+In the automation editor, pick **Add trigger → Ilmy → Prayer time** for a
+first-class trigger: choose the prayer (fajr, sunrise, dhuhr, asr, maghrib,
+isha, midnight — or **Any prayer** to fire at every one) and an optional
+**offset** (use a negative duration to fire *before* the prayer).
+
+In YAML:
+
+```yaml
+triggers:
+  - trigger: ilmy.prayer_time
+    options:
+      prayer: maghrib
+      offset: "-00:10:00"
+actions:
+  - action: notify.notify
+    data:
+      message: "Maghrib in 10 minutes — {{ trigger.hijri_date }}"
+```
+
+The trigger variables mirror the `ilmy_prayer_time` event data:
+`trigger.prayer`, `trigger.time` and `trigger.hijri_date`.
 
 ### Notification blueprint
 
