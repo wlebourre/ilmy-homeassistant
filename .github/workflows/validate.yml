@@ -1,0 +1,37 @@
+name: Validate
+
+on:
+  push:
+    branches: [prod, dev]
+  pull_request:
+    branches: [prod]
+
+jobs:
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Hassfest validation
+        uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    # HACS validates repo-level files (LICENSE, hacs.json, description,
+    # topics) on the default branch — running it on dev pushes only produces
+    # noise. It runs on prod pushes (and proves green right after promotion).
+    if: github.ref == 'refs/heads/prod'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: integration
+          # brands: needs an icon PR to home-assistant/brands — deferred until
+          # the integration is submitted to the default HACS store.
+          ignore: "brands"

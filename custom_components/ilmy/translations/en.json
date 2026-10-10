@@ -2,35 +2,22 @@
   "config": {
     "step": {
       "user": {
-        "title": "Ilmy services and location",
-        "description": "Enter the base URLs of the Ilmy services (the defaults work for most users), then continue to sign in with your ilmy account in the browser.\n\nYour sign-in token is forwarded to these URLs, so https:// is required unless the host is localhost or a private (LAN) address.",
+        "title": "Ilmy services, location and content",
+        "description": "No account is needed: prayer times are computed locally on this device, and the Ilmy services are queried anonymously once per day (Hijri date, hadith and verse of the day).\n\nThe default service URLs work for most users. Custom (e.g. self-hosted) hosts receive the same anonymous daily queries — https:// is required unless the host is localhost or a private (LAN) address.",
         "data": {
           "hijri_url": "Hijri service URL",
           "hadith_url": "Hadith service URL",
           "quran_url": "Quran service URL",
           "latitude": "Latitude",
           "longitude": "Longitude",
-          "time_zone_name": "Time zone"
-        },
-        "data_description": {
-          "hijri_url": "https:// required (http only for localhost/private hosts)",
-          "hadith_url": "https:// required (http only for localhost/private hosts)",
-          "quran_url": "https:// required (http only for localhost/private hosts)"
-        }
-      },
-      "confirm_urls": {
-        "title": "Confirm custom service hosts",
-        "description": "Some service URLs point to hosts other than the official ilmy.org services:\n\n{custom_urls}\n\nAfter you sign in, your ilmy access token will be sent to these hosts. Only continue if you control them (e.g. a self-hosted stack) — the token grants access to your ilmy account."
-      },
-      "settings": {
-        "title": "Prayer and content settings",
-        "data": {
-          "method": "Calculation method",
-          "asr": "Asr juristic school",
+          "time_zone_name": "Time zone",
           "language": "Content language",
           "hadith_book": "Hadith collection"
         },
         "data_description": {
+          "hijri_url": "https:// required (http only for localhost/private hosts)",
+          "hadith_url": "https:// required (http only for localhost/private hosts)",
+          "quran_url": "https:// required (http only for localhost/private hosts)",
           "language": "Language of the hadith/verse translations",
           "hadith_book": "Collection used for the hadith of the day"
         }
@@ -38,19 +25,12 @@
     },
     "error": {
       "cannot_connect": "Cannot connect — check the URLs and that the services are reachable",
-      "invalid_auth": "The sign-in token was rejected — please try again",
       "invalid_url": "Invalid URL — use an http(s) URL with a valid host and no embedded credentials",
-      "https_required": "https:// is required for public hosts — your sign-in token would otherwise be sent unencrypted (http is allowed only for localhost/private addresses)",
+      "https_required": "https:// is required for public hosts (http is allowed only for localhost/private addresses)",
       "unknown": "Unexpected error"
     },
     "abort": {
       "already_configured": "The Ilmy integration is already configured",
-      "missing_configuration": "The integration is not configured — please contact the developer",
-      "authorize_url_timeout": "Timeout waiting for the sign-in page",
-      "oauth_error": "An error occurred during sign-in — please try again",
-      "oauth_timeout": "The sign-in took too long — please try again",
-      "oauth_unauthorized": "Sign-in was not completed — please try again",
-      "oauth_failed": "Sign-in failed — please try again",
       "unknown": "Unexpected error"
     }
   },
@@ -61,8 +41,17 @@
         "data": {
           "method": "Calculation method",
           "asr": "Asr juristic school",
+          "high_latitude": "High-latitude adjustment",
           "language": "Content language",
-          "hadith_book": "Hadith collection"
+          "hadith_book": "Hadith collection",
+          "latitude": "Latitude",
+          "longitude": "Longitude",
+          "time_zone_name": "Time zone"
+        },
+        "data_description": {
+          "high_latitude": "How Fajr/Isha are estimated when the sun never reaches their angle (polar day/night)",
+          "language": "Language of the hadith/verse translations",
+          "hadith_book": "Collection used for the hadith of the day"
         }
       }
     }

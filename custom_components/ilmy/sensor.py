@@ -138,7 +138,7 @@ class IlmyHijriDateSensor(IlmyBaseSensor):
 
     @property
     def extra_state_attributes(self) -> dict:
-        """Return the Hijri date parts."""
+        """Return the Hijri date parts (stale when the last fetch failed)."""
         hijri = self.coordinator.data.hijri
         return {
             "day": hijri.get("day"),
@@ -148,6 +148,7 @@ class IlmyHijriDateSensor(IlmyBaseSensor):
             "month_name_ar": hijri.get("month_name_ar"),
             "formatted_ar": hijri.get("formatted_ar"),
             "is_ramadan": hijri.get("is_ramadan"),
+            "stale": self.coordinator.data.hijri_stale,
         }
 
 
