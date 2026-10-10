@@ -525,3 +525,40 @@ async def test_no_config_entry_returns_noop_unsub(hass: HomeAssistant) -> None:
 
     unsub = await trigger.async_attach_runner(run_action)
     unsub()  # must not raise
+
+
+async def test_entry_not_set_up_returns_noop_unsub(hass: HomeAssistant) -> None:
+    """An entry that exists but never finished setup yields a no-op attach
+    rather than raising."""
+    make_entry().add_to_hass(hass)
+    config = await IlmyPrayerTimeTrigger.async_validate_config(
+        hass, {CONF_OPTIONS: {"prayer": "dhuhr"}}
+    )
+    trigger = IlmyPrayerTimeTrigger(
+        hass,
+        TriggerConfig(key="ilmy.prayer_time", options=config[CONF_OPTIONS]),
+    )
+
+    @callback
+    def run_action(payload, description, context=None):
+        raise AssertionError("must not fire")
+
+    unsub = await trigger.async_attach_runner(run_action)
+    unsub()  # must not raise
+
+
+async def test_attach_waits_for_entry_setup(hass: HomeAssistant, freezer) -> None:
+    """Attaching after the entry is set up arms the trigger normally
+    (regression: startup attach raced the entry setup and died silently)."""
+    freezer.move_to(SETUP_TIME)
+    times = expected_times(DAY)
+
+    with aioresponses() as m:
+        mock_all(m)
+        await setup_integration(hass)
+        fired, unsub = await attach_trigger(hass, {"prayer": "asr"})
+
+        await advance(hass, freezer, times["asr"] + timedelta(seconds=5))
+
+    unsub()
+    assert [payload["prayer"] for payload, _ in fired] == ["asr"]

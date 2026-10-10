@@ -97,16 +97,20 @@ class IlmyPrayerTimeTrigger(Trigger):
         """Attach the trigger to an action runner."""
         self._run_action = run_action
         entries = self._hass.config_entries.async_entries(DOMAIN)
-        coordinator = getattr(entries[0], "runtime_data", None) if entries else None
-        if coordinator is None:
+        # At startup, automations attach their triggers while the Ilmy entry
+        # may still be setting up — wait for it instead of attaching as a
+        # permanent no-op (which left the automation dead until a reload).
+        if not entries or not await self._hass.config_entries.async_wait_component(
+            entries[0]
+        ):
             _LOGGER.error(
                 "The prayer time trigger cannot be attached: no Ilmy config "
                 "entry is set up"
             )
             return lambda: None
-        self._coordinator = coordinator
+        self._coordinator = entries[0].runtime_data
         self._schedule()
-        unsub_listener = coordinator.async_add_listener(self._schedule)
+        unsub_listener = self._coordinator.async_add_listener(self._schedule)
 
         @callback
         def _async_remove() -> None:
