@@ -13,7 +13,7 @@ hadith, verse), from the Ilmy platform services:
 - **hadith** — hadith collections (`https://hadith.ilmy.org`)
 - **quran** — quran text and translations (`https://quran.ilmy.org`)
 
-**Requirements:** Home Assistant **2025.4.0 or newer**.
+**Requirements:** Home Assistant **2025.12.0 or newer**.
 
 ## Features
 

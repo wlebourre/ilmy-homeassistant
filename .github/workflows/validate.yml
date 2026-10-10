@@ -19,6 +19,10 @@ jobs:
 
   hacs:
     name: HACS
+    # HACS validates repo-level files (LICENSE, hacs.json, description,
+    # topics) on the default branch — running it on dev pushes only produces
+    # noise. It runs on prod pushes (and proves green right after promotion).
+    if: github.ref == 'refs/heads/prod'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

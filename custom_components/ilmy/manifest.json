@@ -1,13 +1,18 @@
 {
   "domain": "ilmy",
   "name": "Ilmy",
-  "codeowners": ["@walidlebourre"],
+  "codeowners": [
+    "@wlebourre"
+  ],
   "config_flow": true,
-  "dependencies": ["http"],
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://ilmy.org",
-  "homeassistant": "2025.12.0",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "loggers": ["custom_components.ilmy"],
+  "loggers": [
+    "custom_components.ilmy"
+  ],
   "version": "0.1.0"
 }
