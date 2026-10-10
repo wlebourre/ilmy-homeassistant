@@ -1,18 +1,19 @@
 """Async API client for the Ilmy services (hijri, hadith, quran).
 
-All three services accept the user's IAM access token
-(`Authorization: Bearer <token>`), so the content each user sees follows
-their account's role/permissions.  Tokens are supplied by Home Assistant's
-OAuth2 session machinery, which also refreshes them automatically.
+Every endpoint used by the integration is anonymous — no account, token or
+sign-in of any kind. All requests carry an identifying User-Agent so the
+services can recognise (and contact) the integration.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Any
 
 import aiohttp
-from homeassistant.helpers import config_entry_oauth2_flow
+
+from .const import USER_AGENT
 
 REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=15)
 
@@ -26,48 +27,29 @@ class IlmyError(Exception):
 class IlmyConnectionError(IlmyError):
     """A service could not be reached or returned an unexpected error."""
 
-
-class IlmyAuthError(IlmyError):
-    """The access token was rejected (expired/revoked — re-authenticate)."""
+    def __init__(self, message: str, retry_after: float | None = None) -> None:
+        """Initialize the error; retry_after is the server-provided delay
+        (seconds) from a 429 Retry-After header, when present."""
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class IlmyClient:
-    """Client wrapping the three Ilmy HTTP APIs."""
+    """Client wrapping the three Ilmy HTTP APIs (all anonymous)."""
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
-        oauth_session: config_entry_oauth2_flow.OAuth2Session | None,
+        *,
         hijri_url: str,
         hadith_url: str,
         quran_url: str,
-        static_token: str | None = None,
     ) -> None:
-        """Initialize the client with base URLs (no trailing slashes).
-
-        oauth_session may be None for anonymous (unauthenticated) access.
-        static_token is a raw access token used directly, e.g. when
-        validating the URLs during the config flow before the config
-        entry (and its OAuth2 session) exists.
-        """
+        """Initialize the client with base URLs (no trailing slashes)."""
         self._session = session
-        self._oauth = oauth_session
-        self._static_token = static_token
         self._hijri_url = hijri_url.rstrip("/")
         self._hadith_url = hadith_url.rstrip("/")
         self._quran_url = quran_url.rstrip("/")
-
-    async def _auth_headers(self) -> dict[str, str]:
-        """Return the Authorization header with a valid access token."""
-        if self._static_token is not None:
-            return {"Authorization": f"Bearer {self._static_token}"}
-        if self._oauth is None:
-            return {}
-        try:
-            await self._oauth.async_ensure_token_valid()
-        except Exception as err:
-            raise IlmyAuthError(f"could not refresh the access token: {err}") from err
-        return {"Authorization": f"Bearer {self._oauth.token['access_token']}"}
 
     async def _get(
         self,
@@ -78,15 +60,12 @@ class IlmyClient:
     ) -> Any:
         """GET a JSON endpoint, raising IlmyError subclasses on failure."""
         try:
-            headers = await self._auth_headers()
-        except IlmyAuthError:
-            raise
-        try:
             async with self._session.get(
-                url, params=params, headers=headers, timeout=REQUEST_TIMEOUT
+                url,
+                params=params,
+                headers={"User-Agent": USER_AGENT},
+                timeout=REQUEST_TIMEOUT,
             ) as resp:
-                if resp.status == 401:
-                    raise IlmyAuthError(f"{service}: access token rejected")
                 if resp.status == 404:
                     return None
                 if resp.status != 200:
@@ -100,38 +79,26 @@ class IlmyClient:
                         resp.status,
                         body,
                     )
-                    raise IlmyConnectionError(f"{service}: HTTP {resp.status}")
+                    raise IlmyConnectionError(
+                        f"{service}: HTTP {resp.status}",
+                        retry_after=_parse_retry_after(resp) if resp.status == 429 else None,
+                    )
                 return await resp.json()
         except (aiohttp.ClientError, TimeoutError) as err:
             raise IlmyConnectionError(f"{service}: {err}") from err
 
-    # ── Hijri / prayer times service ─────────────────────────────────────────
+    # ── Hijri service ────────────────────────────────────────────────────────
 
-    async def async_get_prayer_times(
-        self,
-        latitude: float,
-        longitude: float,
-        time_zone: str,
-        method: str,
-        asr: int,
-    ) -> dict[str, Any]:
-        """Return today's prayer times, Hijri date and qibla direction."""
+    async def async_get_hijri_date(
+        self, day: date, country: str | None = None
+    ) -> dict[str, Any] | None:
+        """Return the Hijri date for a Gregorian (local civil) date."""
+        params: dict[str, Any] = {"date": day.isoformat()}
+        if country:
+            params["country"] = country.upper()
         return await self._get(
-            f"{self._hijri_url}/api/v1/times",
-            params={
-                "lat": latitude,
-                "lng": longitude,
-                "tz": time_zone,
-                "method": method,
-                "asr": asr,
-            },
-            service="hijri",
-        )
-
-    async def async_get_methods(self) -> list[dict[str, Any]]:
-        """Return the available calculation methods."""
-        return await self._get(
-            f"{self._hijri_url}/api/v1/methods",
+            f"{self._hijri_url}/api/v1/hijri",
+            params=params,
             service="hijri",
         )
 
@@ -174,3 +141,14 @@ class IlmyClient:
         if not data or not data.get("ayat"):
             return None
         return data["ayat"][0]
+
+
+def _parse_retry_after(resp: aiohttp.ClientResponse) -> float | None:
+    """Parse a Retry-After header (delta-seconds) into a float, or None."""
+    value = resp.headers.get("Retry-After")
+    if not value:
+        return None
+    try:
+        return float(value.strip())
+    except ValueError:
+        return None

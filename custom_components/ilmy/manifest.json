@@ -8,5 +8,6 @@
   "homeassistant": "2025.4.0",
   "integration_type": "hub",
   "iot_class": "cloud_polling",
-  "version": "0.3.0"
+  "loggers": ["custom_components.ilmy"],
+  "version": "0.1.0"
 }

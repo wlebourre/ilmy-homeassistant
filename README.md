@@ -1,105 +1,103 @@
 # Ilmy — Home Assistant integration
 
-Prayer times (salah), Hijri date, qibla, hadith of the day and verse of the
-day for Home Assistant, backed by the Ilmy platform services:
+Privacy-friendly Islamic prayer times (salah), Hijri date, qibla, hadith of
+the day and verse of the day for Home Assistant.
 
-- **hijri** — prayer-time calculation and Hijri calendar
-- **hadith** — hadith collections
-- **quran** — quran text and translations
+**No account, no sign-in, no API key** (since v0.1.0). Prayer times and the
+qibla direction are computed **100% locally** on your Home Assistant device —
+there is no cloud dependency for the times themselves. The only network
+traffic is a small anonymous daily fetch of the content sensors (Hijri date,
+hadith, verse), from the Ilmy platform services:
 
-## Authentication — sign in with your ilmy account
+- **hijri** — Hijri calendar (`https://hijri.ilmy.org`)
+- **hadith** — hadith collections (`https://hadith.ilmy.org`)
+- **quran** — quran text and translations (`https://quran.ilmy.org`)
 
-The integration uses **OAuth2 SSO**: during setup you are redirected to the
-Ilmy sign-in page, you log in with your ilmy account, and Home Assistant
-stores and refreshes the tokens automatically. There is no API key to copy.
-
-**Requirements:** Home Assistant **2025.4.0 or newer** (the OAuth flow sends a
-PKCE S256 code challenge, which relies on `LocalOAuth2ImplementationWithPkce`
-first shipping in HA 2025.4). Server-side, the IAM `homeassistant` client's
-`require_pkce` must be TRUE (migration 036 lands separately).
-
-Because every user signs in individually, the content follows **your
-account's role** — e.g. authenticated tiers that include English hadith text
-will see it in the hadith-of-the-day attributes.
-
-> **My Home Assistant redirect:** the OAuth callback goes through
-> `https://my.home-assistant.io/redirect/oauth` (the standard redirect for
-> custom integrations). Make sure the [My Home Assistant](https://www.home-assistant.io/integrations/my/)
-> integration is enabled (it is by default) and that your instance URL is
-> reachable from it. If your instance cannot use My Home Assistant, ask the
-> platform admin to register your local callback URL
-> (`http://<your-ha>:8123/auth/external/callback`) in IAM's `oauth_clients`
-> table.
-
-## Security notes
-
-- **Token storage:** Home Assistant stores OAuth refresh/access tokens in
-  plaintext in its `.storage` files (`core.config_entries`) inside the
-  config directory. Protect that directory (filesystem permissions) and
-  **enable encryption for Home Assistant backups** (Settings → System →
-  Backups) — an unencrypted backup contains a live token for your ilmy
-  account.
-- **PKCE / redirect coupling:** the `homeassistant` OAuth client in IAM
-  is a public client protected by the fixed
-  `https://my.home-assistant.io/redirect/oauth` callback combined with the
-  PKCE S256 challenge sent by the integration. The authorization code can
-  therefore only be redeemed through that exact redirect URI registered in
-  IAM — do not register additional wildcard or public redirect URIs for this
-  client, and treat any request to add one as a security-sensitive change.
-  Server-side, `require_pkce` for this client must be TRUE (migration 036
-  lands separately).
-- **Custom service URLs:** if you point the integration at self-hosted
-  services, your ilmy token is forwarded to those hosts. The config flow
-  enforces `https://` for public hosts (plain `http://` is accepted only
-  for localhost/private LAN addresses) and asks for explicit confirmation
-  when a host differs from the official `*.ilmy.org` defaults.
+**Requirements:** Home Assistant **2025.4.0 or newer**.
 
 ## Features
 
-- Prayer times as **timestamp sensors**, usable in `time` automation triggers
-  exactly like the built-in `sun` integration — with `offset` support.
-- An **`ilmy_prayer_time` event** fired at every prayer, usable as an
-  `event` automation trigger.
-- A ready-made **notification blueprint** for prayer-time alerts.
-- Daily **hadith of the day** and **verse of the day** sensors (Arabic +
-  translation in your chosen language).
-- Hijri date and qibla direction sensors.
+- **12 sensors**: 7 prayer timestamp sensors (fajr, sunrise, dhuhr, asr,
+  maghrib, isha, midnight) usable in `time` automation triggers exactly like
+  the built-in `sun` integration — with `offset` support — plus
+  `next_prayer`, `hijri_date`, `qibla`, `hadith_of_the_day` and
+  `verse_of_the_day`.
+- An **`ilmy_prayer_time` event** fired at every prayer, with a ready-made
+  **notification blueprint**.
+- **19 calculation methods** (MWL, Egyptian, Karachi, Umm Al-Qura, ISNA,
+  UOIF, Diyanet, …) with a **country-based default** derived from your HA
+  configuration, an **Asr juristic school** setting (Shafi'i/Maliki/Hanbali
+  or Hanafi) and **high-latitude adjustment** for polar day/night.
+- Daily content in **English, French or Arabic**, from your chosen hadith
+  collection.
 - Fully configured through the UI — no YAML.
+
+## Privacy & politeness
+
+- **Exactly 3 anonymous GETs per day** (Hijri date, hadith, verse), sent as
+  one batch shortly after local **Maghrib** plus a random 0–20 min jitter —
+  a fleet of installs never hits the services at the same second.
+- The hadith book list and surah list are cached locally for 30 days, so
+  they are not part of the daily traffic.
+- Every request carries an identifying `User-Agent`
+  (`HomeAssistant-ilmy/0.1.0`) — no credentials of any kind are sent.
+- **Your location never leaves your home**: prayer times and qibla are
+  computed locally from the coordinates you configure.
+- `https://` is enforced for public service hosts (plain `http://` is
+  accepted only for localhost/private LAN addresses, for self-hosters).
+- On failure the daily batch retries with backoff (15/30/60 min, honoring
+  `Retry-After`), then keeps the previous content until the next Maghrib.
 
 ## Installation
 
+### HACS (custom repository)
+
+1. In HACS, open the menu → **Custom repositories**, add
+   `https://github.com/wlebourre/ilmy-homeassistant` with category
+   **Integration**.
+2. Find **Ilmy** in HACS and click **Download**.
+3. Restart Home Assistant.
+
+### Manual
+
 1. Copy `custom_components/ilmy` into your Home Assistant
-   `config/custom_components/` directory (or add this repo as a HACS custom
-   repository).
+   `config/custom_components/` directory.
 2. Restart Home Assistant.
-3. Go to **Settings → Devices & services → Add integration → Ilmy**.
-4. Step 1 — service URLs (defaults `https://{hijri,hadith,quran}.ilmy.org`
-   work for most users) and location, prefilled from your HA settings.
-5. You are redirected to the **Ilmy sign-in page** — log in with your ilmy
-   account; the browser returns to Home Assistant automatically.
-6. Step 2 — calculation method (fetched live from the hijri service), Asr
-   juristic school, content language (en/fr/ar) and the hadith collection
-   used for the hadith of the day.
-7. Verify: prayer timestamps, hijri date, qibla, hadith/verse of the day in
-   **Developer tools → States**; listen to `ilmy_prayer_time` in
-   **Developer tools → Events**.
 
-Make sure your instance's **internal URL** is set correctly under
-**Settings → System → Network** — the OAuth callback goes through
-`https://my.home-assistant.io/redirect/oauth` (already registered in IAM) and
-lands back on that URL via your browser. This works fine for a LAN-only
-instance. If the redirect ever fails, register the local callback in the
-production IAM DB:
+## Configuration
 
-```sql
-UPDATE oauth_clients
-SET redirect_uris = redirect_uris || 'http://<your-ha>:8123/auth/external/callback'
-WHERE client_id = 'homeassistant';
-```
+Everything is done in the UI — **Settings → Devices & services → Add
+integration → Ilmy**:
 
-These settings can be changed later via **Configure** on the integration
-card. If your tokens are revoked (e.g. password change), Home Assistant
-prompts you to sign in again (re-authentication flow).
+- **Service URLs** — the defaults (`https://{hijri,hadith,quran}.ilmy.org`)
+  work for most users. Self-hosting is supported: point them at your own
+  stack (`http://` is allowed for localhost/private hosts).
+- **Location** — latitude/longitude/time zone, prefilled from your Home
+  Assistant home location.
+- **Content language** (en/fr/ar) and **hadith collection** (fetched live
+  from the hadith service, with a built-in fallback list).
+- The calculation method defaults from your HA-configured **country**.
+
+The **Configure** button on the integration card re-opens the options at any
+time: calculation method, Asr school, high-latitude rule, language, hadith
+collection — and the location, so you can fine-tune it without re-adding the
+integration.
+
+Verify in **Developer tools → States** (prayer timestamps in your local time
+zone, hijri date, hadith/verse references) and listen to `ilmy_prayer_time`
+in **Developer tools → Events**.
+
+## Upgrading from ≤ 0.3.0
+
+v0.1.0 is a **clean break**: the ilmy account / OAuth sign-in is gone.
+
+1. Open **Settings → Devices & services → Ilmy** and **delete** the old
+   config entry.
+2. Update the integration (HACS or copy the new files) and restart.
+3. Add the integration again — no sign-in this time.
+
+Entity unique IDs are unchanged, so your dashboards, automations and the
+blueprint keep working after re-adding.
 
 ## Entities
 
@@ -107,13 +105,15 @@ prompts you to sign in again (re-authentication flow).
 | --- | --- | --- |
 | `sensor.ilmy_fajr` … `sensor.ilmy_midnight` | timestamp | fajr, sunrise, dhuhr, asr, maghrib, isha, midnight |
 | `sensor.ilmy_next_prayer` | prayer name | attribute: `time` |
-| `sensor.ilmy_hijri_date` | e.g. `2 Dhul-Qa'dah 1446` | attributes: day/month/year, `is_ramadan`, … |
-| `sensor.ilmy_qibla` | degrees from north | attribute: compass direction |
+| `sensor.ilmy_hijri_date` | e.g. `2 Dhul-Qa'dah 1446` | attributes: day/month/year, `is_ramadan`, `stale`, … |
+| `sensor.ilmy_qibla` | degrees from north | attributes: compass direction, arabic label |
 | `sensor.ilmy_hadith_of_the_day` | e.g. `Sahih al-Bukhari 756` | attributes: arabic, translation, book, chapter |
 | `sensor.ilmy_verse_of_the_day` | e.g. `2:255` | attributes: uthmani_text, translation, surah, juz, page |
 
 Long hadith/verse text lives in the attributes (HA states are limited to
-255 characters).
+255 characters). A prayer timestamp reads `unknown` when the sun never
+reaches that prayer's angle (polar day/night) — enable a high-latitude
+adjustment in the options if that affects you.
 
 ## Automations
 
@@ -162,11 +162,27 @@ notification**. Pick the prayer, the notify target (e.g.
 ## Daily content
 
 The hadith and verse of the day rotate deterministically with the calendar
-day (no repeats within a collection's cycle) and refresh at local midnight.
-The hadith collection and translation language are selectable in the
-integration options.
+day (no repeats within a collection's cycle) and refresh once per day,
+shortly after local Maghrib. The Hijri date sensor is marked with a
+`stale: true` attribute if its last fetch failed and the previous value is
+being kept. Content survives restarts — the last known values are restored
+until the next daily batch.
 
-## Development / smoke test
+## Development
+
+### Tests
+
+```bash
+cd homeassistant
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements_test.txt
+python -m pytest tests/
+```
+
+The suite includes minute-exact parity tests of the local prayer engine and
+qibla calculation against the verified Go implementation they port.
+
+### Smoke test (dev container)
 
 ```bash
 cd homeassistant
@@ -174,31 +190,27 @@ docker compose -f docker-compose.dev.yml up -d
 # open http://localhost:8123, complete onboarding, then add the Ilmy integration
 ```
 
-For a full local OAuth2 test you need a reachable IAM (dev stack in
-`../iam`) and your HA dev instance's callback URL
-(`http://localhost:8123/auth/external/callback`) registered in IAM's
-`oauth_clients` table:
-
-```sql
-UPDATE oauth_clients
-SET redirect_uris = redirect_uris || 'http://localhost:8123/auth/external/callback'
-WHERE client_id = 'homeassistant';
-```
-
 Checklist:
 
-1. Add the integration via the UI, sign in on the IAM page, and confirm all
+1. Add the integration via the UI — no sign-in prompt — and confirm all 12
    entities appear under **Settings → Devices & services → Ilmy**.
 2. Check the states in **Developer tools → States** (prayer timestamps in
    your local time zone, hijri date, hadith/verse references).
 3. Listen to `ilmy_prayer_time` in **Developer tools → Events** and wait for
    the next prayer (or check the logs for `Fired ilmy_prayer_time`).
+4. Check the service access logs: exactly one anonymous batch (hijri date,
+   hadith, verse) per day, after local Maghrib.
 
 ## Structure
 
 ```
 homeassistant/
-├── custom_components/ilmy/   # the integration
+├── custom_components/ilmy/   # the integration (incl. the local prayer engine)
 ├── blueprints/automation/ilmy/prayer_notification.yaml
+├── tests/                    # unit / parity tests
 └── docker-compose.dev.yml    # optional dev container
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

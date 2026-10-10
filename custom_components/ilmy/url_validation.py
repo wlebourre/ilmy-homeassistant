@@ -1,11 +1,11 @@
 """Validation helpers for user-supplied service base URLs.
 
-The integration forwards the user's IAM bearer token to the hijri, hadith
-and quran service URLs, so those URLs must be checked before any request is
-made:
+The integration sends anonymous daily queries (no credentials of any kind)
+to the hijri, hadith and quran service URLs, so those URLs are checked
+before any request is made:
 
 - ``https://`` is required for any public host — plain HTTP would expose
-  the bearer token to anyone on the network path;
+  the fetched prayer content to tampering on the network path;
 - plain ``http://`` is accepted only for localhost / RFC-1918 (private)
   hosts, for self-hosters running the stack on their own machine or LAN.
 
@@ -61,7 +61,7 @@ def validate_service_url(url: str) -> str | None:
     - ERROR_INVALID_URL: unparseable, missing host, embedded credentials,
       or a scheme other than http/https;
     - ERROR_HTTPS_REQUIRED: plain http against a non-private host — the
-      bearer token would be sent in cleartext over the internet.
+      daily queries would be sent in cleartext over the internet.
     """
     try:
         parsed = urlparse(url.strip())
@@ -84,11 +84,7 @@ def validate_service_url(url: str) -> str | None:
 
 
 def non_default_hosts(urls: dict[str, str], defaults: dict[str, str]) -> dict[str, str]:
-    """Return {key: hostname} for URLs whose host differs from the defaults.
-
-    Used to warn the user before their bearer token is forwarded to hosts
-    other than the built-in ilmy.org services.
-    """
+    """Return {key: hostname} for URLs whose host differs from the defaults."""
     result: dict[str, str] = {}
     for key, url in urls.items():
         default = defaults.get(key)
