@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 from functools import partial
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
 
@@ -19,6 +19,13 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, PRAYERS
+
+if TYPE_CHECKING:
+    try:
+        # HA 2026.7+
+        from homeassistant.helpers.trigger import TriggerNotTriggeredReporter
+    except ImportError:
+        TriggerNotTriggeredReporter = Any
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -92,7 +99,10 @@ class IlmyPrayerTimeTrigger(Trigger):
         self._options = config.options
 
     async def async_attach_runner(
-        self, run_action: TriggerActionRunner
+        self,
+        run_action: TriggerActionRunner,
+        # Passed (positionally) by HA 2026.7+; absent on 2025.12.
+        did_not_trigger: TriggerNotTriggeredReporter | None = None,
     ) -> CALLBACK_TYPE:
         """Attach the trigger to an action runner."""
         self._run_action = run_action

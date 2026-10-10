@@ -562,3 +562,75 @@ async def test_attach_waits_for_entry_setup(hass: HomeAssistant, freezer) -> Non
 
     unsub()
     assert [payload["prayer"] for payload, _ in fired] == ["asr"]
+
+
+async def test_end_to_end_through_core_pipeline(hass: HomeAssistant, freezer) -> None:
+    """Full production path: core validation + async_initialize_triggers,
+    advancing through maghrib while the coordinator fires its own event."""
+    from homeassistant.helpers import trigger as trigger_helper
+
+    freezer.move_to(SETUP_TIME)
+    times = expected_times(DAY)
+
+    with aioresponses() as m:
+        mock_all(m)
+        await setup_integration(hass)
+
+        conf = [
+            {
+                "platform": "ilmy.prayer_time",
+                "options": {"prayer": "maghrib"},
+            }
+        ]
+        conf = await trigger_helper.async_validate_trigger_config(hass, conf)
+
+        fired = []
+
+        async def action(run_variables, context=None):
+            fired.append(run_variables)
+
+        removes = await trigger_helper.async_initialize_triggers(
+            hass, conf, action, "automation", "test", lambda *a: None
+        )
+        assert removes is not None
+
+        # Through maghrib: the coordinator's own prayer event fires too.
+        await advance(hass, freezer, times["maghrib"] + timedelta(seconds=5))
+
+    removes()
+    assert len(fired) == 1
+    assert fired[0]["trigger"]["prayer"] == "maghrib"
+
+
+async def test_attach_accepts_did_not_trigger_reporter(
+    hass: HomeAssistant, freezer
+) -> None:
+    """HA 2026.7+ calls async_attach_runner(run_action, did_not_trigger)
+    positionally — the signature must accept it (regression: attach raised
+    TypeError on 2026.7, leaving every automation trigger dead)."""
+    freezer.move_to(SETUP_TIME)
+    times = expected_times(DAY)
+
+    with aioresponses() as m:
+        mock_all(m)
+        await setup_integration(hass)
+        config = await IlmyPrayerTimeTrigger.async_validate_config(
+            hass, {CONF_OPTIONS: {"prayer": "maghrib"}}
+        )
+        trigger = IlmyPrayerTimeTrigger(
+            hass,
+            TriggerConfig(key="ilmy.prayer_time", options=config[CONF_OPTIONS]),
+        )
+        fired = []
+
+        @callback
+        def run_action(payload, description, context=None):
+            fired.append(payload)
+            return hass.async_create_task(asyncio.sleep(0))
+
+        unsub = await trigger.async_attach_runner(run_action, None)
+
+        await advance(hass, freezer, times["maghrib"] + timedelta(seconds=5))
+
+    unsub()
+    assert [payload["prayer"] for payload in fired] == ["maghrib"]
