@@ -9,9 +9,9 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_OPTIONS
+from homeassistant.const import ATTR_DEVICE_ID, CONF_OPTIONS, CONF_TARGET
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.automation import move_top_level_schema_fields_to_options
 from homeassistant.helpers.event import async_track_point_in_time
 from homeassistant.helpers.trigger import Trigger, TriggerActionRunner, TriggerConfig
@@ -34,7 +34,15 @@ _OPTIONS_SCHEMA_DICT = {
     vol.Optional(CONF_OFFSET, default=timedelta(0)): cv.time_period,
 }
 
-_CONFIG_SCHEMA = vol.Schema({vol.Required(CONF_OPTIONS): _OPTIONS_SCHEMA_DICT})
+_CONFIG_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_OPTIONS): _OPTIONS_SCHEMA_DICT,
+        # Cosmetic (the prayer times are global to the single Ilmy entry);
+        # it only makes the trigger appear under the Ilmy device in the
+        # automation editor's "By target" tab.
+        vol.Optional(CONF_TARGET): cv.TARGET_FIELDS,
+    }
+)
 
 
 async def async_get_triggers(hass: HomeAssistant) -> dict[str, type[Trigger]]:
@@ -65,7 +73,17 @@ class IlmyPrayerTimeTrigger(Trigger):
         cls, hass: HomeAssistant, config: ConfigType
     ) -> ConfigType:
         """Validate config."""
-        return _CONFIG_SCHEMA(config)
+        config = _CONFIG_SCHEMA(config)
+        target = config.get(CONF_TARGET) or {}
+        if device_ids := target.get(ATTR_DEVICE_ID):
+            dev_reg = dr.async_get(hass)
+            entries = hass.config_entries.async_entries(DOMAIN)
+            entry_id = entries[0].entry_id if entries else None
+            for device_id in device_ids:
+                device = dev_reg.async_get(device_id)
+                if device is None or entry_id not in device.config_entries:
+                    raise vol.Invalid(f"Device '{device_id}' is not an Ilmy device")
+        return config
 
     def __init__(self, hass: HomeAssistant, config: TriggerConfig) -> None:
         """Initialize trigger."""

@@ -17,6 +17,7 @@ from homeassistant.const import (
     CONF_OPTIONS,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.trigger import TriggerConfig
 from homeassistant.util import dt as dt_util
 
@@ -218,6 +219,9 @@ async def test_trigger_platform_registers_end_to_end(
 
     desc = descriptions["ilmy.prayer_time"]
     assert set(desc["fields"]) == {"prayer", "offset"}
+    # The device target is what lists the trigger under the Ilmy device in
+    # the automation editor's "By target" tab.
+    assert desc["target"] == {"device": [{"integration": "ilmy"}]}
 
 
 async def test_validate_config_accepts_valid(hass: HomeAssistant) -> None:
@@ -264,6 +268,75 @@ async def test_validate_complete_config_moves_fields_to_options(
         "offset": timedelta(minutes=5),
     }
     assert "prayer" not in config
+
+
+async def _ilmy_device_id(hass: HomeAssistant) -> str:
+    """Set up the integration and return its device registry id."""
+    with aioresponses() as m:
+        mock_all(m)
+        await setup_integration(hass)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    dev_reg = dr.async_get(hass)
+    return next(
+        device.id
+        for device in dev_reg.devices.values()
+        if entry.entry_id in device.config_entries
+    )
+
+
+async def test_validate_config_accepts_ilmy_device_target(
+    hass: HomeAssistant, freezer
+) -> None:
+    """A target with the Ilmy device validates; no-target configs still do
+    (backward compatibility)."""
+    freezer.move_to(SETUP_TIME)
+    device_id = await _ilmy_device_id(hass)
+
+    config = await IlmyPrayerTimeTrigger.async_validate_config(
+        hass,
+        {
+            CONF_OPTIONS: {"prayer": "fajr"},
+            "target": {"device_id": [device_id]},
+        },
+    )
+    assert config["target"] == {"device_id": [device_id]}
+
+    config = await IlmyPrayerTimeTrigger.async_validate_config(
+        hass, {CONF_OPTIONS: {"prayer": "fajr"}}
+    )
+    assert "target" not in config
+
+
+async def test_validate_config_rejects_non_ilmy_or_unknown_device(
+    hass: HomeAssistant, freezer
+) -> None:
+    """Device ids that are unknown or belong to another integration fail."""
+    freezer.move_to(SETUP_TIME)
+    await _ilmy_device_id(hass)
+
+    with pytest.raises(vol.Invalid, match="not an Ilmy device"):
+        await IlmyPrayerTimeTrigger.async_validate_config(
+            hass,
+            {
+                CONF_OPTIONS: {"prayer": "fajr"},
+                "target": {"device_id": ["no-such-device"]},
+            },
+        )
+
+    other_entry = MockConfigEntry(domain="other")
+    other_entry.add_to_hass(hass)
+    other_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=other_entry.entry_id,
+        identifiers={("other", "1")},
+    )
+    with pytest.raises(vol.Invalid, match="not an Ilmy device"):
+        await IlmyPrayerTimeTrigger.async_validate_config(
+            hass,
+            {
+                CONF_OPTIONS: {"prayer": "fajr"},
+                "target": {"device_id": [other_device.id]},
+            },
+        )
 
 
 # ── Firing ─────────────────────────────────────────────────────────────────────

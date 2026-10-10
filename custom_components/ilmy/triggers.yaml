@@ -1,4 +1,7 @@
 prayer_time:
+  target:
+    device:
+      integration: ilmy
   fields:
     prayer:
       required: true

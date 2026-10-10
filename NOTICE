@@ -1,0 +1,13 @@
+Ilmy — Home Assistant integration
+==================================
+
+The software in this repository is licensed under the MIT License (see
+LICENSE), with the following exclusion:
+
+BRAND ASSETS — NOT COVERED BY THE MIT LICENSE
+
+The Ilmy name, logo, and icon (the files under
+custom_components/ilmy/brand/) are copyright © 2026 Ilmy, all rights
+reserved. They are distributed with the software solely so the
+integration displays correctly, and may not be reused for other purposes
+without the copyright holder's written permission.
